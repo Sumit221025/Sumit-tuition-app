@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   CreditCard,
-  GripVertical,
   Info,
   ChevronRight,
+  ChevronLeft,
   Camera,
   Circle,
   MessageSquareText,
@@ -25,7 +25,9 @@ import {
   CircleDollarSign,
   ReceiptText,
   TrendingUp,
-  CheckCircle2
+  CheckCircle2,
+  Smartphone,
+  Landmark
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Student, ChapterNote } from "../types";
@@ -38,8 +40,6 @@ interface StudentDashboardProps {
   onOpenAvatarModal: () => void;
   onUpdateChapterRemark: (subject: string, noteId: string, remark: string) => void;
 }
-
-type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "1x3" | "3x1" | "1/2x1" | "1x1/2" | "2x3" | "3x2";
 
 function getInitials(name: string) {
   return name
@@ -174,10 +174,9 @@ function getWeeklyAttendanceDays(student: Student) {
   return entries;
 }
 
-function getCalendarDaysForCurrentMonth(student: Student) {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+function getCalendarDaysForMonth(student: Student, targetDate: Date) {
+  const year = targetDate.getFullYear();
+  const month = targetDate.getMonth();
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
@@ -208,6 +207,97 @@ function getCalendarDaysForCurrentMonth(student: Student) {
   return monthDays;
 }
 
+function getCalendarDaysForCurrentMonth(student: Student, targetDate = new Date()) {
+  return getCalendarDaysForMonth(student, targetDate);
+}
+
+function getPaymentModeMeta(mode?: string) {
+  const normalized = (mode || "").toLowerCase();
+  if (normalized.includes("upi") || normalized.includes("phonepe") || normalized.includes("gpay")) {
+    return { label: "UPI", icon: <Smartphone className="h-3.5 w-3.5" /> };
+  }
+  if (normalized.includes("card")) {
+    return { label: "Card", icon: <CreditCard className="h-3.5 w-3.5" /> };
+  }
+  if (normalized.includes("bank") || normalized.includes("transfer")) {
+    return { label: "Bank transfer", icon: <Landmark className="h-3.5 w-3.5" /> };
+  }
+  if (normalized.includes("cash") || normalized.includes("offline")) {
+    return { label: "Cash", icon: <CircleDollarSign className="h-3.5 w-3.5" /> };
+  }
+  return { label: "—", icon: <ReceiptText className="h-3.5 w-3.5" /> };
+}
+
+interface StudentDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  student: Student;
+  formatDate: (value?: string) => string;
+}
+
+function StudentDetailsModal({ isOpen, onClose, student, formatDate }: StudentDetailsModalProps) {
+  if (!isOpen) return null;
+
+  const attendanceEntries = Object.entries(student.attendance || {});
+  const presentCount = attendanceEntries.filter(([, status]) => status === true).length;
+  const absentCount = attendanceEntries.filter(([, status]) => status === false).length;
+  const totalRecords = attendanceEntries.filter(([, status]) => status !== "na").length;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-[30px] border border-slate-200/70 bg-white p-4 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Read-only</p>
+            <h3 className="text-lg font-black text-slate-900">Student details</h3>
+          </div>
+          <button onClick={onClose} className="rounded-full bg-slate-100 p-2 text-slate-500">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-4 grid gap-3">
+          <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Student</p>
+            <p className="mt-1 text-base font-black text-slate-900">{student.name}</p>
+            <p className="mt-1 text-[12px] text-slate-500">{student.classGrade || "Class not assigned"}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-[22px] border border-slate-100 bg-white p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Phone</p>
+              <p className="mt-1 text-sm font-semibold text-slate-700">{student.phone || "Not available"}</p>
+            </div>
+            <div className="rounded-[22px] border border-slate-100 bg-white p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Parent Phone</p>
+              <p className="mt-1 text-sm font-semibold text-slate-700">{student.parentPhone || "Not available"}</p>
+            </div>
+            <div className="rounded-[22px] border border-slate-100 bg-white p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Email</p>
+              <p className="mt-1 text-sm font-semibold text-slate-700">{student.email || "Not available"}</p>
+            </div>
+            <div className="rounded-[22px] border border-slate-100 bg-white p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Registration date</p>
+              <p className="mt-1 text-sm font-semibold text-slate-700">{student.registrationDate ? formatDate(student.registrationDate) : "Not available"}</p>
+            </div>
+          </div>
+          <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Fee overview</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-emerald-700">
+              <span className="rounded-full bg-white/70 px-2.5 py-1">Monthly fee ₹{student.monthlyFee}</span>
+              <span className="rounded-full bg-white/70 px-2.5 py-1">Present {presentCount}</span>
+              <span className="rounded-full bg-white/70 px-2.5 py-1">Absent {absentCount}</span>
+              <span className="rounded-full bg-white/70 px-2.5 py-1">Records {totalRecords}</span>
+            </div>
+          </div>
+          <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Subjects</p>
+            <p className="mt-2 text-sm font-semibold text-slate-700">{student.enrolledSubjects?.length ? student.enrolledSubjects.join(", ") : "No subjects added"}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface StudentHeaderProps {
   student: Student;
 }
@@ -222,7 +312,7 @@ function StudentHeader({ student }: StudentHeaderProps) {
         </span>
       </div>
       <div className="rounded-full border border-slate-200/70 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
-        v1.0
+        v2.0
       </div>
     </div>
   );
@@ -231,10 +321,11 @@ function StudentHeader({ student }: StudentHeaderProps) {
 interface HeroCardProps {
   student: Student;
   onOpenAvatarModal: () => void;
+  onOpenStudentDetails: () => void;
   formatDate: (value?: string) => string;
 }
 
-function HeroCard({ student, onOpenAvatarModal, formatDate }: HeroCardProps) {
+function HeroCard({ student, onOpenAvatarModal, onOpenStudentDetails, formatDate }: HeroCardProps) {
   return (
     <div className="relative overflow-hidden rounded-[30px] border border-white/50 bg-gradient-to-br from-sky-700 via-indigo-700 to-violet-800 p-4 text-white shadow-[0_30px_90px_rgba(37,99,235,0.25)]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.25),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.12),_transparent_30%)]" />
@@ -252,7 +343,9 @@ function HeroCard({ student, onOpenAvatarModal, formatDate }: HeroCardProps) {
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.34em] text-sky-100">Personal Student Space</p>
-            <h1 className="text-lg font-black text-white">{student.name}</h1>
+            <button type="button" onClick={onOpenStudentDetails} className="text-left text-lg font-black text-white transition-opacity hover:opacity-90">
+              {student.name}
+            </button>
             <p className="mt-1 text-[12px] text-sky-100/90">Keep track of notes, progress, attendance and many more.</p>
             {student.registrationDate && (
               <p className="mt-1 text-[10px] text-sky-200/90">Joined {formatDate(student.registrationDate)}</p>
@@ -270,18 +363,34 @@ interface WeeklyAttendanceChecklistProps {
 
 function WeeklyAttendanceChecklist({ entries }: WeeklyAttendanceChecklistProps) {
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
       {entries.map((entry) => {
         const isPresent = entry.status === "present";
         const isAbsent = entry.status === "absent";
         const isHoliday = entry.status === "holiday";
         const isHidden = entry.status === "hidden";
         if (isHidden) return null;
+
+        const entryDate = new Date(`${entry.key}T12:00:00`);
+        const dateLabel = entryDate.toLocaleDateString("en-IN", { day: "numeric" });
+        const weekdayLabel = entryDate.toLocaleDateString("en-IN", { weekday: "short" }).toUpperCase();
+
         return (
-          <div key={entry.key} className={`flex flex-col items-center justify-center rounded-2xl border px-2 py-2 text-center backdrop-blur ${isPresent ? "border-emerald-400/40 bg-emerald-500/20 text-emerald-50" : isAbsent ? "border-rose-400/40 bg-rose-500/20 text-rose-50" : isHoliday ? "border-white/20 bg-white/10 text-slate-100" : "border-white/15 bg-white/10 text-slate-100/80"}`}>
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] opacity-80">{entry.label}</div>
-            <div className="mt-1 flex h-5 w-5 items-center justify-center text-sm font-black">
-              {isPresent ? <CheckCircle2 className="h-4 w-4" /> : isAbsent ? <Circle className="h-4 w-4" /> : isHoliday ? <Circle className="h-4 w-4" /> : <Circle className="h-4 w-4 opacity-70" />}
+          <div key={entry.key} className="flex min-w-[42px] flex-1 flex-col items-center gap-1.5">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full border text-[11px] font-black shadow-sm ${isPresent ? "border-emerald-300 bg-emerald-500 text-white" : isAbsent ? "border-rose-300 bg-rose-500 text-white" : isHoliday ? "border-white/20 bg-white/15 text-white" : "border-slate-300 bg-white text-slate-700"}`}>
+              {isPresent ? (
+                <span className="leading-none">✓</span>
+              ) : isAbsent ? (
+                <span className="leading-none">✕</span>
+              ) : isHoliday ? (
+                <span className="text-[9px] leading-none">H</span>
+              ) : (
+                <span className="text-[9px] leading-none">NA</span>
+              )}
+            </div>
+            <div className="text-center">
+              <div className="text-[9px] font-black uppercase tracking-[0.18em] text-emerald-50/80">{dateLabel}</div>
+              <div className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-50/90">{weekdayLabel}</div>
             </div>
           </div>
         );
@@ -326,7 +435,7 @@ interface AttendanceCardProps {
 
 function AttendanceCard({ attendanceStats, weeklyAttendance, onOpenSheet }: AttendanceCardProps) {
   return (
-    <div className="relative flex min-h-[260px] flex-col overflow-hidden rounded-[30px] border border-emerald-400/20 bg-gradient-to-br from-emerald-600 via-green-500 to-lime-500 p-4 text-white shadow-[0_28px_80px_rgba(5,150,105,0.24)]">
+    <div className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[30px] border border-emerald-400/20 bg-gradient-to-br from-emerald-600 via-green-500 to-lime-500 p-4 text-white shadow-[0_28px_80px_rgba(5,150,105,0.24)]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.18),_transparent_44%)]" />
       <div className="relative flex flex-1 flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
@@ -368,15 +477,14 @@ function FeeCard({ student, currentMonthName, currentMonthStatus, pendingMonths,
   const isNa = currentMonthStatus === "na";
   const gradient = isPaid ? "from-emerald-600 via-teal-500 to-cyan-600" : isNa ? "from-slate-700 via-slate-600 to-slate-500" : "from-rose-600 via-red-500 to-orange-500";
   const accent = isPaid || isNa ? "bg-emerald-500/15 text-emerald-50 border-emerald-400/30" : "bg-amber-500/15 text-amber-50 border-amber-400/30";
-  const monthLabel = currentMonthName.includes(" ") ? currentMonthName.split(" ")[0] : currentMonthName;
   return (
-    <div className={`relative flex min-h-[260px] flex-col overflow-hidden rounded-[30px] border border-white/20 bg-gradient-to-br ${gradient} p-4 text-white shadow-[0_28px_80px_rgba(15,23,42,0.2)]`}>
+    <div className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-[30px] border border-white/20 bg-gradient-to-br ${gradient} p-4 text-white shadow-[0_28px_80px_rgba(15,23,42,0.2)]`}>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.15),_transparent_44%)]" />
       <div className="relative flex flex-1 flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">Fees</p>
-            <h3 className="mt-1 text-lg font-black">{monthLabel}</h3>
+            <h3 className="mt-1 text-lg font-black">{currentMonthName}</h3>
           </div>
           <button onClick={(e) => { e.stopPropagation(); onOpenSheet(); }} className="rounded-full border border-white/25 bg-white/10 p-2 shadow-sm backdrop-blur" aria-label="Open fee history">
             <Info className="h-4 w-4" />
@@ -384,7 +492,7 @@ function FeeCard({ student, currentMonthName, currentMonthStatus, pendingMonths,
         </div>
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-3xl font-black leading-none">₹{student.monthlyFee}</p>
+            <p className="text-3xl font-black leading-none">₹{student.monthlyFee}/mo</p>
             <p className="mt-1 text-[11px] text-white/85">{currentMonthName}</p>
           </div>
           <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] ${accent}`}>
@@ -395,14 +503,14 @@ function FeeCard({ student, currentMonthName, currentMonthStatus, pendingMonths,
           <div className="flex items-center justify-between text-[11px] font-semibold text-white/85">
             <span className="flex items-center gap-1">
               <ReceiptText className="h-3.5 w-3.5" />
-              Pending months
+              Pending Months
             </span>
             <span className="text-sm font-black">{pendingMonths.length}</span>
           </div>
           <div className="mt-2 flex items-center justify-between text-[11px] font-semibold text-white/85">
             <span className="flex items-center gap-1">
               <CircleDollarSign className="h-3.5 w-3.5" />
-              Pending amount
+              Pending Amount
             </span>
             <span className="text-sm font-black">₹{totalPendingAmount}</span>
           </div>
@@ -418,10 +526,35 @@ interface AttendanceBottomSheetProps {
   attendanceStats: { rate: number; presents: number; total: number };
   attendanceHistoryByMonth: Array<{ month: string; present: number; absent: number; total: number; pct: number }>;
   student: Student;
+  selectedMonthLabel: string;
+  onPreviousMonth: () => void;
+  onNextMonth: () => void;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
 }
 
-function AttendanceBottomSheet({ isOpen, onClose, attendanceStats, attendanceHistoryByMonth, student }: AttendanceBottomSheetProps) {
-  const calendarDays = React.useMemo(() => getCalendarDaysForCurrentMonth(student), [student]);
+function AttendanceBottomSheet({
+  isOpen,
+  onClose,
+  attendanceStats,
+  attendanceHistoryByMonth,
+  student,
+  selectedMonthLabel,
+  onPreviousMonth,
+  onNextMonth,
+  canGoPrevious,
+  canGoNext
+}: AttendanceBottomSheetProps) {
+  const targetDate = React.useMemo(() => {
+    const [monthName, yearStr] = (selectedMonthLabel || "").split(" ");
+    const monthIndex = MONTH_NAMES.indexOf(monthName);
+    const year = Number(yearStr) || new Date().getFullYear();
+    if (monthIndex === -1) return new Date();
+    return new Date(year, monthIndex, 1);
+  }, [selectedMonthLabel]);
+  const calendarDays = React.useMemo(() => getCalendarDaysForCurrentMonth(student, targetDate), [student, targetDate]);
+  const selectedMonthSummary = attendanceHistoryByMonth.find((item) => item.month === selectedMonthLabel);
+
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-slate-950/60 p-2 backdrop-blur-sm" onClick={onClose}>
@@ -435,20 +568,29 @@ function AttendanceBottomSheet({ isOpen, onClose, attendanceStats, attendanceHis
             <X className="h-4 w-4" />
           </button>
         </div>
+        <div className="mt-3 flex items-center justify-between rounded-[22px] border border-slate-100 bg-slate-50 px-3 py-2">
+          <button onClick={onPreviousMonth} disabled={!canGoPrevious} className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-black text-slate-700">{selectedMonthLabel || "Current month"}</span>
+          <button onClick={onNextMonth} disabled={!canGoNext} className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <div className="rounded-[22px] border border-emerald-100 bg-emerald-50 p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600">Attendance %</p>
-            <p className="mt-1 text-xl font-black text-emerald-700">{attendanceStats.rate}%</p>
+            <p className="mt-1 text-xl font-black text-emerald-700">{selectedMonthSummary?.pct ?? attendanceStats.rate}%</p>
           </div>
           <div className="rounded-[22px] border border-rose-100 bg-rose-50 p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-rose-600">Present / Absent</p>
-            <p className="mt-1 text-xl font-black text-rose-700">{attendanceStats.presents}/{attendanceStats.total}</p>
+            <p className="mt-1 text-xl font-black text-rose-700">{selectedMonthSummary?.present ?? attendanceStats.presents}/{selectedMonthSummary?.absent ?? (attendanceStats.total - attendanceStats.presents)}</p>
           </div>
           <div className="rounded-[22px] border border-slate-100 bg-slate-50 p-3 sm:col-span-2">
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Monthly summary</p>
             <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600">
-              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">Present {attendanceStats.presents}</span>
-              <span className="rounded-full bg-rose-100 px-2.5 py-1 text-rose-700">Absent {attendanceStats.total - attendanceStats.presents}</span>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">Present {selectedMonthSummary?.present ?? attendanceStats.presents}</span>
+              <span className="rounded-full bg-rose-100 px-2.5 py-1 text-rose-700">Absent {selectedMonthSummary?.absent ?? (attendanceStats.total - attendanceStats.presents)}</span>
               <span className="rounded-full bg-slate-200 px-2.5 py-1 text-slate-700">Leaves 0</span>
             </div>
           </div>
@@ -483,7 +625,7 @@ function AttendanceBottomSheet({ isOpen, onClose, attendanceStats, attendanceHis
 interface FeeHistoryBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  feeHistory: Array<{ month: string; status: string; payDate?: string }>;
+  feeHistory: Array<{ month: string; status: string; payDate?: string; paymentMode?: string }>;
   student: Student;
   formatDate: (value?: string) => string;
 }
@@ -504,21 +646,27 @@ function FeeHistoryBottomSheet({ isOpen, onClose, feeHistory, student, formatDat
         </div>
         <div className="mt-4 max-h-[70vh] overflow-y-auto pr-1">
           <div className="flex flex-col gap-2">
-            {feeHistory.map((item) => (
-              <div key={item.month} className="rounded-[22px] border border-slate-100 bg-slate-50 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-black text-slate-800">{item.month}</p>
-                    <p className="mt-1 text-[11px] text-slate-500">Amount: ₹{student.monthlyFee}</p>
-                    <p className="text-[11px] text-slate-500">Paid date: {item.payDate ? formatDate(item.payDate) : "—"}</p>
-                    <p className="text-[11px] text-slate-500">Payment mode: —</p>
+            {feeHistory.map((item) => {
+              const paymentModeMeta = getPaymentModeMeta(item.paymentMode);
+              return (
+                <div key={item.month} className="rounded-[22px] border border-slate-100 bg-slate-50 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-black text-slate-800">{item.month}</p>
+                      <p className="mt-1 text-[11px] text-slate-500">Amount: ₹{student.monthlyFee}</p>
+                      <p className="text-[11px] text-slate-500">Paid date: {item.payDate ? formatDate(item.payDate) : "—"}</p>
+                      <div className="mt-1 flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-600">
+                        {paymentModeMeta.icon}
+                        <span>{paymentModeMeta.label}</span>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] ${item.status === "paid" ? "bg-emerald-100 text-emerald-700" : item.status === "na" ? "bg-slate-200 text-slate-700" : "bg-rose-100 text-rose-700"}`}>
+                      {item.status === "paid" ? "Paid" : item.status === "na" ? "N/A" : "Pending"}
+                    </span>
                   </div>
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.22em] ${item.status === "paid" ? "bg-emerald-100 text-emerald-700" : item.status === "na" ? "bg-slate-200 text-slate-700" : "bg-rose-100 text-rose-700"}`}>
-                    {item.status === "paid" ? "Paid" : item.status === "na" ? "N/A" : "Pending"}
-                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -529,34 +677,21 @@ function FeeHistoryBottomSheet({ isOpen, onClose, feeHistory, student, formatDat
 interface SubjectProgressCardProps {
   subject: { name: string; total: number; completed: number; rate: number; notes: ChapterNote[] };
   index: number;
-  size: TileSize;
-  isDragging: boolean;
   onSelectSubject: (subject: string) => void;
-  onDragStart: (event: React.DragEvent<HTMLDivElement>, cardId: string) => void;
-  onDragOver: (event: React.DragEvent<HTMLDivElement>, cardId: string) => void;
-  onDragEnd: () => void;
-  onSizeChange: (subject: string, size: TileSize) => void;
-  onMoveUp: (subject: string) => void;
-  onMoveDown: (subject: string) => void;
-  sizeClassName: string;
 }
 
-function SubjectProgressCard({ subject, index, size, isDragging, onSelectSubject, onDragStart, onDragOver, onDragEnd, onSizeChange, onMoveUp, onMoveDown, sizeClassName }: SubjectProgressCardProps) {
+function SubjectProgressCard({ subject, index, onSelectSubject }: SubjectProgressCardProps) {
   const palette = getSubjectCardPalette(index);
   const IconComponent = getSubjectIcon(subject.name);
   const isEmpty = subject.total === 0 && subject.completed === 0;
   return (
     <motion.div
       layout
-      draggable
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      onDragStart={(event) => onDragStart(event, subject.name)}
-      onDragOver={(event) => onDragOver(event, subject.name)}
-      onDragEnd={onDragEnd}
       onClick={() => onSelectSubject(subject.name)}
-      className={`${sizeClassName} ${isDragging ? "opacity-50" : "opacity-100"}`}
+      className="col-span-1 sm:col-span-2 row-span-1"
     >
       <div className={`group flex h-full flex-col overflow-hidden rounded-[30px] border border-white/50 bg-gradient-to-br ${palette.shell} p-4 text-white shadow-[0_20px_55px_rgba(15,23,42,0.12)] ${palette.shadow}`}>
         <div className="flex items-start justify-between gap-2">
@@ -568,17 +703,6 @@ function SubjectProgressCard({ subject, index, size, isDragging, onSelectSubject
               <p className="truncate text-[10px] font-black uppercase tracking-[0.26em] text-white/80">{subject.name}</p>
               <p className="text-[11px] text-white/80">Progress overview</p>
             </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="rounded-full border border-white/25 bg-white/10 p-1.5 text-white/80" title="Drag to reorder">
-              <GripVertical className="h-3.5 w-3.5" />
-            </div>
-            <select value={size} onChange={(event) => onSizeChange(subject.name, event.target.value as TileSize)} className="rounded-full border border-white/20 bg-white/12 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/90 backdrop-blur">
-              <option value="1x1">1×1</option>
-              <option value="2x1">2×1</option>
-              <option value="2x2">2×2</option>
-              <option value="3x2">3×2</option>
-            </select>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-3">
@@ -1031,11 +1155,11 @@ export default function StudentDashboard({
   onOpenAvatarModal,
   onUpdateChapterRemark
 }: StudentDashboardProps) {
-  const [feesSize, setFeesSize] = useState<TileSize>("2x1");
-  const [attendanceSize, setAttendanceSize] = useState<TileSize>("2x1");
   const [showAttendanceHistoryModal, setShowAttendanceHistoryModal] = useState(false);
   const [showFeeHistoryModal, setShowFeeHistoryModal] = useState(false);
+  const [showStudentDetailsModal, setShowStudentDetailsModal] = useState(false);
   const [weeklyAttendance, setWeeklyAttendance] = useState<Array<{ label: string; key: string; status: "present" | "absent" | "holiday" | "hidden" | "na" }>>([]);
+  const [attendanceModalMonthIndex, setAttendanceModalMonthIndex] = useState(0);
 
   const studentMonthsSinceJoining = useMemo(() => {
     const regDate = student.registrationDate || "2026-06-01";
@@ -1093,101 +1217,10 @@ export default function StudentDashboard({
     return studentMonthsSinceJoining.map((m) => {
       const status = student.feeMonths?.[m] || "unpaid";
       const payDate = student.feePaymentDates?.[m];
-      return { month: m, status, payDate };
+      const paymentMode = (student as Student & { feePaymentModes?: Record<string, string> }).feePaymentModes?.[m];
+      return { month: m, status, payDate, paymentMode };
     });
   }, [student.feeMonths, student.feePaymentDates, studentMonthsSinceJoining]);
-
-  const [subjectSizes, setSubjectSizes] = useState<Record<string, TileSize>>(() => {
-    const initial: Record<string, TileSize> = {};
-    const saved = localStorage.getItem(`tuition_student_subject_sizes_${student.id}`);
-    const parsed = saved ? JSON.parse(saved) : {};
-    student.enrolledSubjects.forEach((sub) => {
-      initial[sub] = parsed[sub] || "2x1";
-    });
-    return initial;
-  });
-
-  useEffect(() => {
-    localStorage.setItem(`tuition_student_subject_sizes_${student.id}`, JSON.stringify(subjectSizes));
-  }, [student.id, subjectSizes]);
-
-  const [cardOrder, setCardOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem(`tuition_student_layout_${student.id}`);
-    const allCards = ["attendance", "fees", ...student.enrolledSubjects];
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const filtered = parsed.filter((c) => allCards.includes(c));
-          const missing = allCards.filter((c) => !filtered.includes(c));
-          return [...filtered, ...missing];
-        }
-      } catch (e) {
-        console.error("Failed to parse saved layout:", e);
-      }
-    }
-    return allCards;
-  });
-
-  const enrolledSubjectCardsOnly = useMemo(() => {
-    return cardOrder.filter((id) => id !== "attendance" && id !== "fees");
-  }, [cardOrder]);
-
-  const [draggedCardId, setDraggedCardId] = useState<string | null>(null);
-  const [selectedSubjectModal, setSelectedSubjectModal] = useState<string | null>(null);
-
-  const saveOrder = (newOrder: string[]) => {
-    setCardOrder(newOrder);
-    localStorage.setItem(`tuition_student_layout_${student.id}`, JSON.stringify(newOrder));
-  };
-
-  const handleDragStart = (e: React.DragEvent, cardId: string) => {
-    setDraggedCardId(cardId);
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: React.DragEvent, targetCardId: string) => {
-    e.preventDefault();
-    if (!draggedCardId || draggedCardId === targetCardId) return;
-
-    const dragIndex = cardOrder.indexOf(draggedCardId);
-    const targetIndex = cardOrder.indexOf(targetCardId);
-
-    if (dragIndex !== -1 && targetIndex !== -1) {
-      const updated = [...cardOrder];
-      updated.splice(dragIndex, 1);
-      updated.splice(targetIndex, 0, draggedCardId);
-      saveOrder(updated);
-    }
-  };
-
-  const handleDragEnd = () => setDraggedCardId(null);
-
-  const handleMoveUp = (cardId: string) => {
-    const idx = cardOrder.indexOf(cardId);
-    if (idx > 0) {
-      const updated = [...cardOrder];
-      const temp = updated[idx];
-      updated[idx] = updated[idx - 1];
-      updated[idx - 1] = temp;
-      saveOrder(updated);
-    }
-  };
-
-  const handleMoveDown = (cardId: string) => {
-    const idx = cardOrder.indexOf(cardId);
-    if (idx !== -1 && idx < cardOrder.length - 1) {
-      const updated = [...cardOrder];
-      const temp = updated[idx];
-      updated[idx] = updated[idx + 1];
-      updated[idx + 1] = temp;
-      saveOrder(updated);
-    }
-  };
-
-  const handleSetSubjectSize = (subject: string, size: TileSize) => {
-    setSubjectSizes((prev) => ({ ...prev, [subject]: size }));
-  };
 
   const attendanceStats = useMemo(() => {
     const records = Object.values(student.attendance || {}).filter((r) => r !== "na");
@@ -1294,82 +1327,59 @@ export default function StudentDashboard({
     return entries[0]?.[1] || null;
   }, [student.feePaymentDates]);
 
+  const selectedAttendanceMonth = studentMonthsSinceJoining[attendanceModalMonthIndex] || studentMonthsSinceJoining[0] || "";
+  const canGoPreviousAttendanceMonth = attendanceModalMonthIndex > 0;
+  const canGoNextAttendanceMonth = attendanceModalMonthIndex < studentMonthsSinceJoining.length - 1;
+
+  useEffect(() => {
+    setAttendanceModalMonthIndex(0);
+  }, [student.registrationDate, student.id]);
+
   const nextDueLabel = pendingMonths[0] || "No pending dues";
   const paidAcademicYearAmount = feeStats.paidCount * (student.monthlyFee || 0);
-
-  const activeSubjectDetails = useMemo(() => {
-    if (!selectedSubjectModal) return null;
-    return subjectProgress.find((sub) => sub.name === selectedSubjectModal) || null;
-  }, [selectedSubjectModal, subjectProgress]);
-
-  const sizeClasses: Record<TileSize, string> = {
-    "1x1": "col-span-1 row-span-1",
-    "2x1": "col-span-1 sm:col-span-2 row-span-1",
-    "1x2": "col-span-1 row-span-2",
-    "2x2": "col-span-1 sm:col-span-2 row-span-2",
-    "1x3": "col-span-1 row-span-3",
-    "3x1": "col-span-1 sm:col-span-2 xl:col-span-3 row-span-1",
-    "1/2x1": "col-span-1 row-span-1",
-    "1x1/2": "col-span-1 row-span-1",
-    "2x3": "col-span-1 sm:col-span-2 row-span-3",
-    "3x2": "col-span-1 sm:col-span-2 xl:col-span-3 row-span-2"
-  };
-
-  const cardBaseClass = "rounded-[28px] border-0 bg-white/90 dark:bg-slate-900/95 p-3 shadow-[0_14px_40px_rgba(15,23,42,0.08),0_2px_10px_rgba(15,23,42,0.04)] transition-all duration-300 backdrop-blur";
 
   return (
     <div className="flex flex-col gap-4 overflow-x-hidden pb-6 animate-fadeIn" id="student-dashboard-root">
       <StudentHeader student={student} />
-      <HeroCard student={student} onOpenAvatarModal={onOpenAvatarModal} formatDate={formatDate} />
+      <HeroCard student={student} onOpenAvatarModal={onOpenAvatarModal} onOpenStudentDetails={() => setShowStudentDetailsModal(true)} formatDate={formatDate} />
 
-      <div className="grid gap-3 sm:grid-cols-2" id="fixed-student-tiles">
-        <AttendanceCard
-          attendanceStats={attendanceStats}
-          attendanceTodayBadge={attendanceTodayBadge}
-          attendanceTodayLabel={attendanceTodayLabel}
-          weeklyAttendance={weeklyAttendance}
-          attendanceStreak={attendanceStreak}
-          currentMonthAttendanceCount={currentMonthAttendanceCount}
-          lastAttendanceDate={lastAttendanceDate}
-          formatDate={formatDate}
-          onOpenSheet={() => setShowAttendanceHistoryModal(true)}
-        />
-        <FeeCard
-          student={student}
-          currentMonthName={currentMonthName}
-          currentMonthStatus={currentMonthStatus}
-          pendingMonths={pendingMonths}
-          totalPendingAmount={totalPendingAmount}
-          paidAcademicYearAmount={paidAcademicYearAmount}
-          lastPaymentDate={lastPaymentDate}
-          onOpenSheet={() => setShowFeeHistoryModal(true)}
-        />
+      <div className="flex flex-wrap gap-3" id="fixed-student-tiles">
+        <div className="flex-1 min-w-[280px]">
+          <AttendanceCard
+            attendanceStats={attendanceStats}
+            attendanceTodayBadge={attendanceTodayBadge}
+            attendanceTodayLabel={attendanceTodayLabel}
+            weeklyAttendance={weeklyAttendance}
+            attendanceStreak={attendanceStreak}
+            currentMonthAttendanceCount={currentMonthAttendanceCount}
+            lastAttendanceDate={lastAttendanceDate}
+            formatDate={formatDate}
+            onOpenSheet={() => setShowAttendanceHistoryModal(true)}
+          />
+        </div>
+        <div className="flex-1 min-w-[280px]">
+          <FeeCard
+            student={student}
+            currentMonthName={currentMonthName}
+            currentMonthStatus={currentMonthStatus}
+            pendingMonths={pendingMonths}
+            totalPendingAmount={totalPendingAmount}
+            paidAcademicYearAmount={paidAcademicYearAmount}
+            lastPaymentDate={lastPaymentDate}
+            onOpenSheet={() => setShowFeeHistoryModal(true)}
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 auto-rows-[minmax(210px,auto)]" style={{ gridAutoFlow: "dense" }}>
-        {enrolledSubjectCardsOnly.map((cardId, index) => {
-          const sub = subjectProgress.find((item) => item.name === cardId);
-          if (!sub) return null;
-          const size = subjectSizes[sub.name] || "2x1";
-          const sizeClassName = sizeClasses[size];
-          return (
-            <SubjectProgressCard
-              key={sub.name}
-              subject={sub}
-              index={index}
-              size={size}
-              isDragging={draggedCardId === sub.name}
-              onSelectSubject={onSelectSubject}
-              onDragStart={handleDragStart as unknown as (event: React.DragEvent<HTMLDivElement>, cardId: string) => void}
-              onDragOver={handleDragOver as unknown as (event: React.DragEvent<HTMLDivElement>, cardId: string) => void}
-              onDragEnd={handleDragEnd}
-              onSizeChange={handleSetSubjectSize}
-              onMoveUp={handleMoveUp}
-              onMoveDown={handleMoveDown}
-              sizeClassName={sizeClassName}
-            />
-          );
-        })}
+        {subjectProgress.map((sub, index) => (
+          <SubjectProgressCard
+            key={sub.name}
+            subject={sub}
+            index={index}
+            onSelectSubject={onSelectSubject}
+          />
+        ))}
       </div>
 
       <AttendanceBottomSheet
@@ -1378,12 +1388,24 @@ export default function StudentDashboard({
         attendanceStats={attendanceStats}
         attendanceHistoryByMonth={attendanceHistoryByMonth}
         student={student}
+        selectedMonthLabel={selectedAttendanceMonth}
+        onPreviousMonth={() => setAttendanceModalMonthIndex((prev) => Math.max(0, prev - 1))}
+        onNextMonth={() => setAttendanceModalMonthIndex((prev) => Math.min(studentMonthsSinceJoining.length - 1, prev + 1))}
+        canGoPrevious={canGoPreviousAttendanceMonth}
+        canGoNext={canGoNextAttendanceMonth}
       />
 
       <FeeHistoryBottomSheet
         isOpen={showFeeHistoryModal}
         onClose={() => setShowFeeHistoryModal(false)}
         feeHistory={feeHistory}
+        student={student}
+        formatDate={formatDate}
+      />
+
+      <StudentDetailsModal
+        isOpen={showStudentDetailsModal}
+        onClose={() => setShowStudentDetailsModal(false)}
         student={student}
         formatDate={formatDate}
       />
